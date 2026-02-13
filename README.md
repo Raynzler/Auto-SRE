@@ -1,6 +1,6 @@
 # AutoSRE Platform
 
-🌐 **Live Demo:** [autosre.vercel.app](https://auto-sre.vercel.app/)
+🌐 **Live Demo:** [auto-sre.vercel.app](https://auto-sre.vercel.app/)
 
 A production-like Site Reliability Engineering platform built to demonstrate observability, failure handling, and automated recovery in distributed systems.
 
