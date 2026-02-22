@@ -6,6 +6,30 @@
     <title>AutoSRE Platform - Production-Ready Reliability Demo</title>
     <link rel="stylesheet" href="style.css">
 </head>
+<script>
+// Scroll-triggered animations
+const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+};
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+        }
+    });
+}, observerOptions);
+
+// Observe feature cards and timeline items
+document.addEventListener('DOMContentLoaded', () => {
+    const elements = document.querySelectorAll('.feature-card, .timeline-item, .tech-badge');
+    elements.forEach(el => {
+        el.classList.add('scroll-reveal');
+        observer.observe(el);
+    });
+});
+</script>
 <body>
     <nav>
         <div class="container">

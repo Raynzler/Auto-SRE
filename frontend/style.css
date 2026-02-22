@@ -404,3 +404,335 @@ html {
     background: var(--sage);
     color: var(--off-white);
 }
+
+/* ==========================================
+   ANIMATIONS & MICRO-INTERACTIONS
+   ========================================== */
+
+/* Fade in on page load */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Slide in from right */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Floating animation for badges */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Pulse glow effect */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(107, 68, 35, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(107, 68, 35, 0.4);
+    }
+}
+
+/* Gradient shift animation */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+/* Scale in animation */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ==========================================
+   APPLY ANIMATIONS TO ELEMENTS
+   ========================================== */
+
+/* Hero section - fade in */
+.hero {
+    animation: fadeIn 1s ease-out;
+}
+
+.hero h2 {
+    animation: fadeIn 1.2s ease-out 0.2s both;
+}
+
+.tagline {
+    animation: fadeIn 1.4s ease-out 0.4s both;
+}
+
+.status-badge {
+    animation: fadeIn 1.6s ease-out 0.6s both;
+}
+
+/* Badges float gently */
+.badge {
+    animation: float 3s ease-in-out infinite;
+}
+
+.badge.live {
+    animation-delay: 0s;
+}
+
+.badge.building {
+    animation-delay: 0.3s;
+}
+
+/* Feature cards - stagger animation */
+.feature-card:nth-child(1) {
+    animation: scaleIn 0.6s ease-out 0.1s both;
+}
+
+.feature-card:nth-child(2) {
+    animation: scaleIn 0.6s ease-out 0.2s both;
+}
+
+.feature-card:nth-child(3) {
+    animation: scaleIn 0.6s ease-out 0.3s both;
+}
+
+.feature-card:nth-child(4) {
+    animation: scaleIn 0.6s ease-out 0.4s both;
+}
+
+/* Feature card hover - smooth lift with shadow */
+.feature-card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.feature-card:hover {
+    transform: translateY(-12px) scale(1.02);
+}
+
+/* Timeline items - slide in from left */
+.timeline-item:nth-child(odd) {
+    animation: slideInLeft 0.8s ease-out both;
+}
+
+.timeline-item:nth-child(even) {
+    animation: slideInRight 0.8s ease-out both;
+}
+
+.timeline-item:nth-child(1) { animation-delay: 0.1s; }
+.timeline-item:nth-child(2) { animation-delay: 0.2s; }
+.timeline-item:nth-child(3) { animation-delay: 0.3s; }
+.timeline-item:nth-child(4) { animation-delay: 0.4s; }
+
+/* Timeline hover - smoother transition */
+.timeline-item {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Tech badges - scale on hover with bounce */
+.tech-badge {
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.tech-badge:hover {
+    transform: translateY(-5px) scale(1.08);
+}
+
+/* CTA button - pulse glow */
+.cta-btn {
+    transition: all 0.4s ease;
+    animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.cta-btn:hover {
+    animation: none;
+}
+
+/* GitHub button - subtle scale */
+.github-btn {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.github-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+}
+
+/* Nav - slide down on load */
+nav {
+    animation: slideInDown 0.8s ease-out;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Section headings - fade in with slight scale */
+section h3 {
+    animation: fadeInScale 1s ease-out both;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Phase badges - rotate slightly on hover */
+.phase {
+    transition: all 0.3s ease;
+}
+
+.phase:hover {
+    transform: rotate(-2deg) scale(1.05);
+}
+
+/* Add animated gradient to hero background */
+.hero {
+    background: linear-gradient(
+        135deg,
+        var(--cream) 0%,
+        var(--off-white) 25%,
+        var(--cream) 50%,
+        var(--off-white) 75%,
+        var(--cream) 100%
+    );
+    background-size: 200% 200%;
+    animation: gradientShift 15s ease infinite;
+}
+
+/* Footer - fade in from bottom */
+footer {
+    animation: fadeInUp 1s ease-out both;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Smooth link underline animation */
+a {
+    position: relative;
+}
+
+nav h1::after,
+footer strong::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--mocha);
+    transition: width 0.3s ease;
+}
+
+nav h1:hover::after,
+footer strong:hover::after {
+    width: 100%;
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ==========================================
+   SCROLL-TRIGGERED ANIMATIONS (Optional Advanced)
+   ========================================== */
+
+/* Add this class with JavaScript for scroll animations */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease-out;
+}
+
+.scroll-reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Parallax effect for hero (subtle) */
+@media (min-width: 768px) {
+    .hero {
+        position: relative;
+    }
+    
+    .hero::before {
+        animation: parallaxFloat 20s ease-in-out infinite;
+    }
+}
+
+@keyframes parallaxFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
