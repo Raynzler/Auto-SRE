@@ -11,7 +11,7 @@ AutoSRE simulates real-world production challenges that SRE teams face daily. It
 **Built to showcase:**
 - Instrumentation and observability (Prometheus metrics)
 - Self-healing patterns (circuit breakers, retries)
-- Chaos engineering (controlled failure injection)
+- Intentional Chaos engineering (controlled failure injection)
 - Incident response (automated recovery + postmortems)
 
 ## ✅ Current Features (Phase 1 Complete)
