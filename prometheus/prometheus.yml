@@ -1,9 +1,9 @@
 #Prometheus Config
 global:
-  scrape_interval:15s
-  evaluation_interval:15s
+  scrape_interval: 15s
+  evaluation_interval: 15s
 
-scrape configs:
-  - job_name:'Auto-SRE'
-    static configs:
-    - targets: ['api:8000'] #'api' linked from docker compose
+scrape_configs:
+  - job_name: 'Auto-SRE'
+    static_configs:
+      - targets: ['api:8000'] #'api' linked from docker compose
