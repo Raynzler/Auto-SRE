@@ -1,156 +1,93 @@
-#libraries
-import time
-import uuid
+"""AutoSRE API service.
+
+Business endpoints for orders. Validates tokens by calling the Auth service
+through the shared ServiceClient abstraction, guarded by a circuit breaker.
+All platform concerns (RED metrics, chaos, rate limiting, health/ready/metrics,
+failure persistence) come from autosre_shared.
+"""
+
 import asyncio
+import os
+import uuid
 from typing import Optional
 
-#FastAPI framework & Prometheus
-from fastapi import FastAPI, HTTPException, Response, Request
-from pydantic import BaseModel
-from prometheus_client import Gauge, Histogram, Counter, generate_latest, CONTENT_TYPE_LATEST
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import APIRouter, Header, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 
-# === PROMETHEUS METRICS ===
-# Track what's happening in service
-# Metric 1: Count all HTTP requests
-http_requests_total = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status']
-)
-# Metric 2: Latency aka Request Duration
-http_request_duration_seconds = Histogram(
-    'http_request_duration_seconds',
-    'HTTP requests latency in seconds',
-    ['method', 'endpoint']
-)
-# Metric 3: Service Health
-service_up = Gauge(
-    'service_up',
-    'Service health status (1=up, 0=down)',
-    []
-)
+from autosre_shared import create_service_app, HTTPServiceClient, ServiceClient
+from autosre_shared.resilience import get_or_create
+from autosre_shared.resilience.circuit_breaker import BreakerState, CircuitBreakerOpenError
 
-# === FASTAPI APP ===
-# Create the web server
-app = FastAPI(
-    title="AutoSRE API Service",
-    description="Self-healing microservice demo",
-    version="1.0.0"
-)
+# Cross-service dependency (HTTP today; swappable behind ServiceClient).
+AUTH_URL = os.getenv("AUTH_URL", "http://auth:8001")
+auth_client: ServiceClient = HTTPServiceClient(AUTH_URL)
 
-# === SRE MIDDLEWARE ===
-# Intercept HTTP requests for global metric tracking
-class PrometheusMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        start_time = time.time()
-        endpoint = request.url.path 
 
-        if endpoint == "/metrics":
-            return await call_next(request)
-
-        try:
-            response = await call_next(request)
-            status_code = str(response.status_code)
-        except Exception as e:
-            status_code = "500"
-            raise e
-        finally:
-            duration = time.time() - start_time
-            
-            http_requests_total.labels(
-                method=request.method,
-                endpoint=endpoint,
-                status=status_code
-            ).inc()
-
-            http_request_duration_seconds.labels(
-                method=request.method,
-                endpoint=endpoint
-            ).observe(duration)
-            
-        return response
-
-app.add_middleware(PrometheusMiddleware)
-
-# === STARTUP LOGIC ===
-# When the service starts, mark it as healthy
-@app.on_event("startup")
-async def startup_event():
-    service_up.set(1)
-    print("Service Started, Running Healthy")
-
-# === DATA MODELS ===
-# define what requests and responses look like
 class OrderRequest(BaseModel):
-    """
-    Data model for creating an order.
-    FASTapi will auto validate
-    """
-    item: str
-    quantity: int
+    # Strict input validation: reject unknown fields and out-of-range values.
+    model_config = ConfigDict(extra="forbid")
+    item: str = Field(min_length=1, max_length=100)
+    quantity: int = Field(gt=0, le=1000)
 
-    class Config:
-        json_schema_extra = {
-            "example":{
-                "item":"laptop",
-                "quantity": 1
-            }
-        }
 
 class OrderResponse(BaseModel):
-    """
-    Data model for order response
-    """
     order_id: str
     status: str
     item: str
     quantity: int
 
-# === ENDPOINTS ===
-@app.get("/health")
-async def health_check():
-    """
-    Liveness probe: Is the process running?
-    Returns 200 if the service is alive.
-    """
-    return{
-        "status": "Healthy",
-        "service": "autosre-api"
-    }
 
-@app.get("/metrics")
-async def metrics():
-    """
-    Prometheus will scrape this every 15s
-    """
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST
-    )
+def _auth_breaker():
+    return get_or_create("auth", failure_threshold=5, recovery_timeout=30.0, success_threshold=2)
 
-@app.post("/orders", response_model=OrderResponse)
-async def create_order(Order: OrderRequest):
-    """
-    Create a new order with full instrumentation
-    """
+
+router = APIRouter(tags=["orders"])
+
+
+@router.post("/orders", response_model=OrderResponse)
+async def create_order(order: OrderRequest, authorization: Optional[str] = Header(default=None)):
+    token = (authorization or "").removeprefix("Bearer ").strip() or "demo-token"
+    breaker = _auth_breaker()
+    try:
+        result = await breaker.call(auth_client.post_json, "/validate", json={"token": token})
+    except CircuitBreakerOpenError:
+        raise  # -> 503 via the shared exception handler
+    except Exception:
+        raise HTTPException(status_code=502, detail="auth dependency unavailable")
+
+    if not result.get("valid"):
+        raise HTTPException(status_code=401, detail="invalid token")
+
     order_id = f"order_{uuid.uuid4().hex[:8]}"
-    
     await asyncio.sleep(0.05)
-
     return OrderResponse(
-        order_id=order_id,
-        status="created",
-        item=Order.item,
-        quantity=Order.quantity
+        order_id=order_id, status="created", item=order.item, quantity=order.quantity
     )
 
-# === RUN THE SERVER ===
+
+async def _readiness():
+    # Degraded (not ready) when the auth dependency's breaker is open.
+    breaker = _auth_breaker()
+    return {"ready": breaker.state != BreakerState.OPEN, "auth_breaker": breaker.state.value}
+
+
+async def _shutdown(_app):
+    await auth_client.aclose()
+
+
+# Register the auth breaker at import so it appears in /breaker/status.
+_auth_breaker()
+
+app = create_service_app(
+    service_name="api",
+    title="AutoSRE API Service",
+    business_routers=[router],
+    readiness_check=_readiness,
+    on_shutdown=_shutdown,
+)
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info"
-    )
+
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))
