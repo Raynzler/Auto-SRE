@@ -1,0 +1,53 @@
+# SLO / error-budget recording rules.
+# These power the Reliability dashboard (Current SLO, Error Budget Remaining,
+# Burn Rate) and the multi-window burn-rate alerts.
+#
+# Availability SLO = 99.9% over a 30d window (see the Reliability section in the
+# README and docs/architecture for the SLI/SLO targets).
+# NOTE: the 30d windows below assume Prometheus retention >= 30d
+# (--storage.tsdb.retention.time=30d). With shorter retention the budget
+# reflects available history; adjust the window or retention to match the SLO.
+groups:
+  - name: api_slo
+    interval: 1m
+    rules:
+      # The SLO target as a series, so dashboards/alerts read it from one place.
+      - record: api:slo_target
+        expr: vector(0.999)
+
+      # Allowed failure ratio = 1 - SLO (the size of the error budget).
+      - record: api:error_budget_allowed
+        expr: vector(1 - 0.999)
+
+      # Error budget remaining, normalised to [<=0, 1]:
+      #   1  = full budget, 0 = exhausted, <0 = SLO already breached.
+      #   remaining = 1 - (actual_error_ratio_30d / allowed_failure_ratio)
+      - record: api:error_budget_remaining
+        expr: |
+          1 - (
+            (
+              sum(rate(http_requests_total{job="api", status=~"5.."}[30d]))
+              /
+              clamp_min(sum(rate(http_requests_total{job="api"}[30d])), 1e-9)
+            )
+            / (1 - 0.999)
+          )
+
+      # Burn rate = how many times faster than sustainable the budget is being
+      # consumed right now. 1.0 = exactly on budget; >1 = burning too fast.
+      # Two windows feed the multi-window fast/slow burn alerts.
+      - record: api:error_budget_burn_rate:5m
+        expr: |
+          (
+            sum(rate(http_requests_total{job="api", status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{job="api"}[5m])), 1e-9)
+          ) / (1 - 0.999)
+
+      - record: api:error_budget_burn_rate:1h
+        expr: |
+          (
+            sum(rate(http_requests_total{job="api", status=~"5.."}[1h]))
+            /
+            clamp_min(sum(rate(http_requests_total{job="api"}[1h])), 1e-9)
+          ) / (1 - 0.999)

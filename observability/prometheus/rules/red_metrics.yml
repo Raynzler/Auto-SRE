@@ -1,0 +1,67 @@
+# RED recording rules: Rate, Errors, Duration (+ availability, saturation).
+# Pre-computing these keeps dashboards fast and gives alerts a single, stable
+# series name to reference. Naming follows the level:metric:operation idiom.
+#
+# Scoped to {job="api"} (the user-facing service whose SLO is tracked). Other
+# services (auth, worker) expose the same raw metrics and are explored via the
+# RED dashboard's $job variable; per-service recorded SLOs can be added later.
+groups:
+  - name: api_red_metrics
+    interval: 15s
+    rules:
+      # --- RATE ---
+      # Total request throughput (requests/second) over a 5m window.
+      - record: api:request_rate
+        expr: sum(rate(http_requests_total{job="api"}[5m]))
+
+      # Throughput broken down for dashboards.
+      - record: api:request_rate:by_endpoint
+        expr: sum by (endpoint, method) (rate(http_requests_total{job="api"}[5m]))
+
+      - record: api:request_rate:by_status
+        expr: sum by (status) (rate(http_requests_total{job="api"}[5m]))
+
+      # --- ERRORS ---
+      # 5xx error ratio in [0,1]. clamp_min avoids divide-by-zero when idle
+      # (no traffic -> 0/epsilon -> 0, i.e. "no errors").
+      - record: api:error_rate
+        expr: |
+          sum(rate(http_requests_total{job="api", status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total{job="api"}[5m])), 1e-9)
+
+      - record: api:error_rate:by_endpoint
+        expr: |
+          sum by (endpoint) (rate(http_requests_total{job="api", status=~"5.."}[5m]))
+          /
+          clamp_min(sum by (endpoint) (rate(http_requests_total{job="api"}[5m])), 1e-9)
+
+      # --- DURATION (latency quantiles, seconds) ---
+      # Computed from the histogram; buckets are SLO-aligned in the app.
+      - record: api:latency:p50
+        expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket{job="api"}[5m])))
+
+      - record: api:latency:p95
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="api"}[5m])))
+
+      - record: api:latency:p99
+        expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket{job="api"}[5m])))
+
+      # Per-endpoint p95 for dashboard breakdowns.
+      - record: api:latency:p95:by_endpoint
+        expr: histogram_quantile(0.95, sum by (le, endpoint) (rate(http_request_duration_seconds_bucket{job="api"}[5m])))
+
+      # --- AVAILABILITY ---
+      # Success ratio in [0,1] (1 - error ratio).
+      - record: api:availability
+        expr: |
+          1 - (
+            sum(rate(http_requests_total{job="api", status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_requests_total{job="api"}[5m])), 1e-9)
+          )
+
+      # --- SATURATION ---
+      # In-flight request concurrency (where applicable for an API service).
+      - record: api:saturation:in_flight
+        expr: sum(http_requests_in_progress{job="api"})

@@ -1,0 +1,31 @@
+# Resilience-pattern alerts: the protective mechanisms are firing, which is a
+# symptom that a dependency is unhealthy or traffic is abusive.
+groups:
+  - name: resilience_alerts
+    rules:
+      # circuit_breaker_state encoding: 0=closed, 1=open, 2=half_open.
+      - alert: CircuitBreakerOpen
+        expr: max by (job, name) (circuit_breaker_state) == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker '{{ $labels.name }}' on {{ $labels.job }} is OPEN"
+          description: >-
+            The circuit breaker for dependency '{{ $labels.name }}' on service
+            '{{ $labels.job }}' has been open for over 1m, rejecting calls to
+            protect the system.
+          runbook_url: "https://runbooks.example.com/autosre/circuit-breaker-open"
+
+      - alert: RateLimitingSpike
+        expr: sum by (job) (rate(rate_limit_rejections_total[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated rate limiting on {{ $labels.job }} (clients throttled)"
+          description: >-
+            The '{{ $labels.job }}' rate limiter is rejecting
+            {{ $value | printf "%.2f" }} req/s over 5m, indicating a traffic
+            spike or an abusive client.
+          runbook_url: "https://runbooks.example.com/autosre/rate-limit-spike"

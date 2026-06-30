@@ -1,0 +1,57 @@
+# Symptom-based API alerts: what the USER experiences (errors, latency,
+# unavailability, budget burn) rather than infrastructure causes (CPU, RAM).
+groups:
+  - name: api_symptom_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: api:error_rate > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "API error rate above 5% (users seeing 5xx)"
+          description: >-
+            The API 5xx error ratio is {{ $value | humanizePercentage }}
+            over the last 5m, exceeding the 5% threshold.
+          runbook_url: "https://runbooks.example.com/autosre/high-error-rate"
+
+      - alert: HighLatencyP95
+        expr: api:latency:p95 > 0.75
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "95th percentile latency exceeded SLO"
+          description: >-
+            p95 latency is {{ $value | humanizeDuration }} over 5m, above the
+            750ms alert threshold (SLO target 500ms).
+          runbook_url: "https://runbooks.example.com/autosre/high-latency"
+
+      - alert: ServiceDown
+        expr: up{job=~"api|auth|worker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service '{{ $labels.job }}' is down"
+          description: >-
+            The '{{ $labels.job }}' target has been unreachable (scrape failed)
+            for over 1m.
+          runbook_url: "https://runbooks.example.com/autosre/service-down"
+
+      # Multi-window burn-rate alert: 14.4x over 1h consumes 2% of a 30d budget
+      # in an hour — the canonical Google SRE fast-burn trigger.
+      - alert: ErrorBudgetFastBurn
+        expr: api:error_budget_burn_rate:1h > 14.4 and api:error_budget_burn_rate:5m > 14.4
+        for: 2m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "Error budget burning fast (>14.4x sustainable rate)"
+          description: >-
+            Burn rate is {{ $value | printf "%.1f" }}x. At this pace the 30d
+            error budget is exhausted in ~2 days.
+          runbook_url: "https://runbooks.example.com/autosre/error-budget-burn"
