@@ -1,0 +1,28 @@
+# Network daemon configuration. Scalars can be overridden by env vars
+# (NETD_LISTEN_ADDR, NETD_POLL_INTERVAL, NETD_TIMEOUT). Targets are configured
+# here. Adding a target requires no code change.
+listen_addr: ":2112"
+poll_interval: "15s"
+timeout: "5s"
+
+targets:
+  - name: api
+    host: api
+    port: 8000
+    http: "http://api:8000/health"
+  - name: auth
+    host: auth
+    port: 8001
+    http: "http://auth:8001/health"
+  - name: worker
+    host: worker
+    port: 8002
+    http: "http://worker:8002/health"
+  - name: prometheus
+    host: prometheus
+    port: 9090
+    http: "http://prometheus:9090/-/healthy"
+  - name: grafana
+    host: grafana
+    port: 3000
+    http: "http://grafana:3000/api/health"
