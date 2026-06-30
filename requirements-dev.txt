@@ -1,0 +1,6 @@
+# Test/dev dependencies. Installs the shared library (editable) plus the test
+# toolchain. Run: pip install -r requirements-dev.txt
+-e ./shared
+pytest
+pytest-cov
+pyyaml
