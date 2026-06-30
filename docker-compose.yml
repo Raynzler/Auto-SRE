@@ -1,17 +1,155 @@
-version: '3.8'
+# Hardened local stack. Application services run non-root with a read-only root
+# filesystem (writable data on a named volume + tmpfs /tmp), dropped Linux
+# capabilities, no privilege escalation, resource limits, health probes, and a
+# graceful stop period. No restart policy: AutoSRE observes/notifies — restarts
+# are a deliberate operator action (see docs/operations.md), not auto-remediation.
+#
+# Health-probe note: api/auth/worker probe /health via the image's HEALTHCHECK.
+# The Go daemon (distroless, no shell) and Grafana have no in-container probe;
+# their liveness is observed via Prometheus `up{job=...}`.
+
+x-app-hardening: &app-hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  stop_grace_period: 20s
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 512M
 
 services:
+  # --- application services (each builds from repo root to access shared/) ---
   api:
-    build: .
+    <<: *app-hardening
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     ports:
       - "8000:8000"
-    # Ensure your Dockerfile exposes port 8000
+    environment:
+      - PORT=8000
+      - AUTH_URL=http://auth:8001
+      # Failure events persisted as JSONL to local storage (no external DB).
+      - FAILURE_LOG_PATH=/app/data/failures.jsonl
+    volumes:
+      - api_data:/app/data
+    depends_on:
+      - auth
 
+  auth:
+    <<: *app-hardening
+    build:
+      context: .
+      dockerfile: auth/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - AUTH_DEP_LATENCY=0.08
+      - FAILURE_LOG_PATH=/app/data/failures.jsonl
+    volumes:
+      - auth_data:/app/data
+
+  worker:
+    <<: *app-hardening
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      - WORKER_INTERVAL=5
+      - FAILURE_LOG_PATH=/app/data/failures.jsonl
+    volumes:
+      - worker_data:/app/data
+
+  # --- network observability daemon (non-root distroless, read-only) ---
+  network-daemon:
+    build: ./go-daemon
+    ports:
+      - "2112:2112"
+    environment:
+      - NETD_LISTEN_ADDR=:2112
+      - NETD_POLL_INTERVAL=15s
+      - NETD_TIMEOUT=5s
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+    depends_on:
+      - api
+      - auth
+      - worker
+
+  # --- observability stack ---
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./observability/prometheus/rules:/etc/prometheus/rules
+      - ./observability/prometheus/alerts:/etc/prometheus/alerts
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     depends_on:
       - api
+      - auth
+      - worker
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Secret via env var; override in a local .env (see .env.example).
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+    depends_on:
+      - prometheus
+
+volumes:
+  api_data:
+  auth_data:
+  worker_data:
+  prometheus_data:
+  grafana_data:

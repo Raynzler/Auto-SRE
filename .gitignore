@@ -22,3 +22,14 @@ Thumbs.db
 
 # Docker
 *.log
+
+# Local persistent storage (failure event log) — ignore contents, keep the dir
+data/*
+*.jsonl
+!data/.gitkeep
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
