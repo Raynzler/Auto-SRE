@@ -1,0 +1,10 @@
+# Bandit SAST config for AutoSRE.
+# B104 (bind to 0.0.0.0) is intentional: services bind all interfaces inside
+# their containers; exposure is controlled by Docker/compose port mapping.
+skips:
+  - B104
+exclude_dirs:
+  - venv
+  - .venv
+  - build
+  - __pycache__

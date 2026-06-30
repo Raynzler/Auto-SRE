@@ -1,0 +1,182 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: write # required by the release job to create tags/releases
+
+jobs:
+  lint:
+    name: Lint & format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - name: Ruff lint
+        run: ruff check shared api auth worker tests
+      - name: Ruff format check
+        run: ruff format --check shared api auth worker tests
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: gofmt
+        run: test -z "$(gofmt -l go-daemon)"
+      - name: go vet
+        run: go -C go-daemon vet ./...
+
+  typecheck:
+    name: Type check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install mypy ./shared
+      - run: mypy shared/autosre_shared
+
+  test:
+    name: Unit & integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - name: Run pytest with coverage
+        run: pytest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-html
+          path: htmlcov
+
+  security:
+    name: Security scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit
+      - name: Bandit (Python SAST)
+        run: bandit -c bandit.yaml -r shared api auth worker
+      - name: Trivy (filesystem vuln + secret + misconfig)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python dependency audit (pip-audit)
+        run: |
+          python -m pip install --upgrade pip
+          pip install ./shared pip-audit
+          pip-audit --skip-editable
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Go vulnerability check (govulncheck)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          cd go-daemon && govulncheck ./...
+
+  docker-build:
+    name: Docker build validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all service images
+        run: docker compose build
+      - name: Build test runner image
+        run: docker compose -f docker-compose.test.yml build
+
+  prometheus-validate:
+    name: Prometheus config validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: promtool check rules
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/p" prom/prometheus:latest \
+            promtool check rules /p/rules/red_metrics.yml /p/rules/slo.yml \
+              /p/alerts/api_alerts.yml /p/alerts/chaos_alerts.yml /p/alerts/resilience_alerts.yml
+
+  grafana-validate:
+    name: Grafana provisioning validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - run: python scripts/validate_observability.py
+
+  release:
+    name: Release artifacts & tag
+    needs:
+      - lint
+      - typecheck
+      - test
+      - security
+      - audit
+      - docker-build
+      - prometheus-validate
+      - grafana-validate
+    # Only tag/release after a successful pipeline on the default branch.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Build Python artifacts (autosre-shared sdist + wheel)
+        run: |
+          mkdir -p dist
+          pip install build
+          python -m build shared --outdir dist
+      - name: Build Go daemon binary
+        run: |
+          mkdir -p dist
+          cd go-daemon
+          CGO_ENABLED=0 go build -trimpath -o ../dist/network-daemon ./cmd/daemon
+      - name: Compute release tag
+        id: tag
+        run: echo "tag=v$(date +%Y.%m.%d)-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+      - name: Create GitHub release (creates the tag automatically)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: AutoSRE ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/*
+
+  # NOTE: Deployment is intentionally NOT implemented. This pipeline validates,
+  # builds artifacts, and tags releases only — it never deploys. AutoSRE's
+  # charter is observe/measure/notify, not automated change to running systems.
