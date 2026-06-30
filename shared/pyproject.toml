@@ -1,0 +1,20 @@
+[project]
+name = "autosre-shared"
+version = "1.0.0"
+description = "Shared SRE primitives for AutoSRE services (observability, chaos, resilience, storage, clients)."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "prometheus-client",
+    "httpx",
+    "pydantic",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["autosre_shared*"]
