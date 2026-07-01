@@ -69,7 +69,9 @@ jobs:
       - name: Bandit (Python SAST)
         run: bandit -c bandit.yaml -r shared api auth worker
       - name: Trivy (filesystem vuln + secret + misconfig)
-        uses: aquasecurity/trivy-action@0.24.0
+        # Pinned to an immutable commit SHA (v0.36.0). Newer trivy-action pulls
+        # its DB from a mirror, avoiding GHCR rate limits on hosted runners.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln,secret,misconfig
@@ -92,7 +94,10 @@ jobs:
           pip-audit --skip-editable
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          # A patched Go toolchain: older releases (e.g. 1.23) ship standard-
+          # library CVEs that govulncheck reports as reachable. Bump as new Go
+          # security releases land.
+          go-version: "1.25.11"
       - name: Go vulnerability check (govulncheck)
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -112,13 +117,30 @@ jobs:
   prometheus-validate:
     name: Prometheus config validation
     runs-on: ubuntu-latest
+    env:
+      PROMETHEUS_VERSION: "3.12.0"
     steps:
       - uses: actions/checkout@v4
-      - name: promtool check rules
+      - name: Install promtool
+        # Use promtool natively. The prom/prometheus image ENTRYPOINT is
+        # /bin/prometheus, so `docker run prom/prometheus promtool ...` runs the
+        # prometheus binary with a bogus arg and fails.
         run: |
-          docker run --rm -v "$PWD/observability/prometheus:/p" prom/prometheus:latest \
-            promtool check rules /p/rules/red_metrics.yml /p/rules/slo.yml \
-              /p/alerts/api_alerts.yml /p/alerts/chaos_alerts.yml /p/alerts/resilience_alerts.yml
+          curl -sSL "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-amd64.tar.gz" -o /tmp/prom.tgz
+          tar -xzf /tmp/prom.tgz -C /tmp
+          echo "/tmp/prometheus-${PROMETHEUS_VERSION}.linux-amd64" >> "$GITHUB_PATH"
+      - name: Validate prometheus.yml config
+        run: |
+          # rule_files use container-absolute paths at runtime; rewrite to
+          # repo-relative so config validation resolves the referenced rules.
+          sed 's#/etc/prometheus#observability/prometheus#g' \
+            observability/prometheus/prometheus.yml > /tmp/prometheus.check.yml
+          promtool check config /tmp/prometheus.check.yml
+      - name: Validate recording and alert rules
+        run: |
+          promtool check rules \
+            observability/prometheus/rules/*.yml \
+            observability/prometheus/alerts/*.yml
 
   grafana-validate:
     name: Grafana provisioning validation
@@ -154,7 +176,7 @@ jobs:
           python-version: "3.12"
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25.11"
       - name: Build Python artifacts (autosre-shared sdist + wheel)
         run: |
           mkdir -p dist
@@ -169,7 +191,8 @@ jobs:
         id: tag
         run: echo "tag=v$(date +%Y.%m.%d)-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
       - name: Create GitHub release (creates the tag automatically)
-        uses: softprops/action-gh-release@v2
+        # Pinned to an immutable commit SHA (v3.0.1).
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: AutoSRE ${{ steps.tag.outputs.tag }}

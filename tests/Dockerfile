@@ -7,5 +7,9 @@ COPY . /app
 
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
-# Reports are written to /app (coverage.xml, htmlcov/) — mount /app to keep them.
+# Run the suite as a non-root user (Trivy DS-0002); it owns /app so pytest can
+# write coverage reports (coverage.xml, htmlcov/) and its cache.
+RUN useradd -r -u 10001 tester && chown -R tester /app
+USER 10001
+
 CMD ["pytest"]
