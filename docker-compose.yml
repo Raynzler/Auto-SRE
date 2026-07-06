@@ -72,7 +72,9 @@ services:
 
   # --- network observability daemon (non-root distroless, read-only) ---
   network-daemon:
-    build: ./go-daemon
+    build:
+      context: .
+      dockerfile: deployments/docker/network-daemon.Dockerfile
     ports:
       - "2112:2112"
     environment:

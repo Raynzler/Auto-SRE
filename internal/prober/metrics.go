@@ -1,6 +1,7 @@
-// Package metrics owns the Prometheus collectors and a private registry so the
-// daemon exports exactly the network_* series (plus Go/process metrics).
-package metrics
+// Metrics for the network daemon: a private registry exporting exactly the
+// network_* series (plus Go/process metrics). Lives in the prober package
+// because the prober is their sole owner and emitter.
+package prober
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,8 +20,8 @@ type Metrics struct {
 	Timeouts       *prometheus.CounterVec
 }
 
-// New builds the collectors and registers them on a dedicated registry.
-func New() *Metrics {
+// NewMetrics builds the collectors and registers them on a dedicated registry.
+func NewMetrics() *Metrics {
 	reg := prometheus.NewRegistry()
 
 	m := &Metrics{

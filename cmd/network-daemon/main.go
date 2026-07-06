@@ -1,10 +1,11 @@
-// Command daemon is the AutoSRE network observability daemon. It periodically
-// probes configured targets (DNS/TCP/HTTP) and exports network_* metrics for
-// Prometheus. It performs NO remediation — observe, measure, export only.
+// Command network-daemon is the AutoSRE network observability daemon. It
+// periodically probes configured targets (DNS/TCP/HTTP) and exports network_*
+// metrics for Prometheus. It performs NO remediation — observe, measure, export.
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,10 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Raynzler/Auto-SRE/go-daemon/config"
-	"github.com/Raynzler/Auto-SRE/go-daemon/internal/metrics"
-	"github.com/Raynzler/Auto-SRE/go-daemon/internal/prober"
-	"github.com/Raynzler/Auto-SRE/go-daemon/internal/server"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/Raynzler/Auto-SRE/internal/config"
+	"github.com/Raynzler/Auto-SRE/internal/prober"
 )
 
 func main() {
@@ -34,9 +36,9 @@ func main() {
 		"targets", len(cfg.Targets),
 	)
 
-	m := metrics.New()
+	m := prober.NewMetrics()
 	p := prober.New(cfg, m, logger)
-	srv := server.New(cfg.ListenAddr, m.Registry)
+	srv := newServer(cfg.ListenAddr, m.Registry)
 
 	// Cancel the root context on SIGINT/SIGTERM for graceful shutdown.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -67,4 +69,21 @@ func main() {
 
 	<-proberDone
 	logger.Info("daemon stopped")
+}
+
+// newServer builds the daemon's minimal HTTP surface: /metrics for Prometheus
+// scraping and /health for liveness. (App services get the richer shared server
+// introduced in a later milestone; the daemon only needs these two routes.)
+func newServer(addr string, reg *prometheus.Registry) *http.Server {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"status":  "healthy",
+			"service": "network-daemon",
+		})
+	})
+	return &http.Server{Addr: addr, Handler: mux}
 }

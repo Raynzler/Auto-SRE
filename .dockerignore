@@ -1,0 +1,18 @@
+# Keep build contexts small and reproducible. These paths are never needed by
+# any image build (Go or Python) and only slow down / pollute the context.
+.git
+.github
+data
+docs
+frontend
+htmlcov
+coverage.xml
+.coverage
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+dist
+*.egg-info

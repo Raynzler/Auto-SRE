@@ -11,22 +11,21 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Raynzler/Auto-SRE/go-daemon/config"
-	"github.com/Raynzler/Auto-SRE/go-daemon/internal/metrics"
-	"github.com/Raynzler/Auto-SRE/go-daemon/pkg/netcheck"
+	"github.com/Raynzler/Auto-SRE/internal/config"
+	"github.com/Raynzler/Auto-SRE/pkg/netcheck"
 )
 
 // Prober runs the check loop for all targets.
 type Prober struct {
 	cfg      *config.Config
-	metrics  *metrics.Metrics
+	metrics  *Metrics
 	logger   *slog.Logger
 	client   *http.Client
 	resolver *net.Resolver
 }
 
 // New constructs a Prober.
-func New(cfg *config.Config, m *metrics.Metrics, logger *slog.Logger) *Prober {
+func New(cfg *config.Config, m *Metrics, logger *slog.Logger) *Prober {
 	return &Prober{
 		cfg:      cfg,
 		metrics:  m,
