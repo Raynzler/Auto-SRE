@@ -17,7 +17,7 @@ import (
 
 // Prober runs the check loop for all targets.
 type Prober struct {
-	cfg      *config.Config
+	cfg      *config.NetworkConfig
 	metrics  *Metrics
 	logger   *slog.Logger
 	client   *http.Client
@@ -25,7 +25,7 @@ type Prober struct {
 }
 
 // New constructs a Prober.
-func New(cfg *config.Config, m *Metrics, logger *slog.Logger) *Prober {
+func New(cfg *config.NetworkConfig, m *Metrics, logger *slog.Logger) *Prober {
 	return &Prober{
 		cfg:      cfg,
 		metrics:  m,

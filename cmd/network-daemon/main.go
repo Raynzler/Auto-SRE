@@ -24,7 +24,7 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	cfg, err := config.Load()
+	cfg, err := config.LoadNetwork()
 	if err != nil {
 		logger.Error("failed to load config", "err", err)
 		os.Exit(1)
