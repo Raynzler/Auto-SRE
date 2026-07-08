@@ -1,9 +1,11 @@
-# Keep build contexts small and reproducible. These paths are never needed by
-# any image build (Go or Python) and only slow down / pollute the context.
+# Keep build contexts small and reproducible. Most docs/assets are not needed by
+# image builds; runbooks are re-included because alert tests assert they exist.
 .git
 .github
 data
-docs
+docs/*
+!docs/runbooks/
+!docs/runbooks/*.md
 frontend
 htmlcov
 coverage.xml
