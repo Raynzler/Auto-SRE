@@ -19,7 +19,7 @@ func decode(t *testing.T, rr *httptest.ResponseRecorder) map[string]any {
 }
 
 func TestHealth(t *testing.T) {
-	h := New(&config.ServiceConfig{Service: "api"})
+	h := New(&config.ServiceConfig{Service: "api"}, nil)
 	rr := httptest.NewRecorder()
 	h.Health(rr, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if rr.Code != http.StatusOK {
@@ -32,7 +32,7 @@ func TestHealth(t *testing.T) {
 }
 
 func TestReady(t *testing.T) {
-	h := New(&config.ServiceConfig{Service: "auth"})
+	h := New(&config.ServiceConfig{Service: "auth"}, nil)
 	rr := httptest.NewRecorder()
 	h.Ready(rr, httptest.NewRequest(http.MethodGet, "/ready", nil))
 	if rr.Code != http.StatusOK {
@@ -45,7 +45,7 @@ func TestReady(t *testing.T) {
 }
 
 func TestStatus(t *testing.T) {
-	h := New(&config.ServiceConfig{Service: "worker"})
+	h := New(&config.ServiceConfig{Service: "worker"}, nil)
 	rr := httptest.NewRecorder()
 	h.Status(rr, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rr.Code != http.StatusOK {

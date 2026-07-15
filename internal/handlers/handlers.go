@@ -12,12 +12,14 @@ import (
 
 // Handlers carries the dependencies the endpoints need.
 type Handlers struct {
-	cfg *config.ServiceConfig
+	cfg  *config.ServiceConfig
+	auth AuthValidator
 }
 
-// New builds the handler set for a service.
-func New(cfg *config.ServiceConfig) *Handlers {
-	return &Handlers{cfg: cfg}
+// New builds the handler set for a service. auth may be nil for services that
+// do not route order creation.
+func New(cfg *config.ServiceConfig, auth AuthValidator) *Handlers {
+	return &Handlers{cfg: cfg, auth: auth}
 }
 
 // writeJSON writes v as an indented JSON response with the given status.

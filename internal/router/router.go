@@ -17,8 +17,10 @@ import (
 // bounded chaos latency injection (added in a later milestone) without tripping.
 const requestTimeout = 30 * time.Second
 
-// New returns the fully-wired HTTP handler for a service.
-func New(h *handlers.Handlers, logger *slog.Logger) http.Handler {
+// New returns the fully-wired HTTP handler for a service. Each service adds
+// its business endpoints through register callbacks; the platform surface
+// (health/ready/status/metrics) and middleware chain are identical everywhere.
+func New(h *handlers.Handlers, logger *slog.Logger, register ...func(*http.ServeMux)) http.Handler {
 	mux := http.NewServeMux()
 
 	// Platform surface. "GET /{$}" matches exactly "/" (not a catch-all).
@@ -26,6 +28,11 @@ func New(h *handlers.Handlers, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /ready", h.Ready)
 	mux.HandleFunc("GET /{$}", h.Status)
 	mux.Handle("GET /metrics", promhttp.Handler())
+
+	// Service-specific routes.
+	for _, reg := range register {
+		reg(mux)
+	}
 
 	// Outermost → innermost. Logger sits outside Timeout so timed-out requests
 	// are still logged; Recover sits inside Timeout so handler panics are caught.

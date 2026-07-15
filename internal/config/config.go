@@ -93,6 +93,8 @@ type ServiceConfig struct {
 	FailureLogPath string  `yaml:"failure_log_path"`
 	RateLimitRPS   float64 `yaml:"rate_limit_rps"`
 	RateLimitBurst float64 `yaml:"rate_limit_burst"`
+	// AuthURL is the base URL of the auth service (used by the api service).
+	AuthURL string `yaml:"auth_url"`
 }
 
 // LoadService builds a ServiceConfig for the named service. Precedence:
@@ -104,6 +106,7 @@ func LoadService(service string, defaultPort int) (*ServiceConfig, error) {
 		FailureLogPath: "data/failures.jsonl",
 		RateLimitRPS:   10,
 		RateLimitBurst: 20,
+		AuthURL:        "http://auth:8001",
 	}
 	if err := loadYAML(os.Getenv("CONFIG_FILE"), cfg); err != nil {
 		return nil, err
@@ -114,6 +117,7 @@ func LoadService(service string, defaultPort int) (*ServiceConfig, error) {
 	cfg.FailureLogPath = e.str("FAILURE_LOG_PATH", cfg.FailureLogPath)
 	cfg.RateLimitRPS = e.float("RATE_LIMIT_RPS", cfg.RateLimitRPS)
 	cfg.RateLimitBurst = e.float("RATE_LIMIT_BURST", cfg.RateLimitBurst)
+	cfg.AuthURL = e.str("AUTH_URL", cfg.AuthURL)
 	if err := e.err(); err != nil {
 		return nil, err
 	}
