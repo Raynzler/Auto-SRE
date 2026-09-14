@@ -3,9 +3,9 @@
 [![CI](https://github.com/Raynzler/Auto-SRE/actions/workflows/ci.yml/badge.svg)](https://github.com/Raynzler/Auto-SRE/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Go](https://img.shields.io/badge/go-1.23-00ADD8)
+![Go](https://img.shields.io/badge/go-1.25-00ADD8)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-261230)](https://docs.astral.sh/ruff/)
-![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-93.9%25%20line-brightgreen)
 
 **AutoSRE is a production-style Site Reliability Engineering platform you can run
 on your laptop.** It's a small distributed system — three FastAPI services plus a
@@ -45,9 +45,11 @@ engineered and operated, not to hide failure behind automation.
 - **Production hardening** — non-root containers, read-only filesystems, resource
   limits, health probes, graceful shutdown, request/correlation IDs, security
   headers, strict input validation.
-- **Testing & CI** — 58-test pytest suite (93% of the shared library) and a CI
-  pipeline (lint, types, tests, security scan, dependency audit, Docker/Prometheus/
-  Grafana validation, auto-tagged releases).
+- **Testing & CI** — 59 Python tests plus 19 Go tests, at 93.9% line and 85.5%
+  branch coverage of the shared library, and a nine-job CI pipeline (lint, types,
+  tests, security scan, dependency audit, Docker/Prometheus/Grafana validation,
+  auto-tagged releases). One test shells out to `promtool` and skips when it is
+  absent, so a run without Prometheus installed reports 58 passed, 1 skipped.
 
 ### 🚧 In progress
 - **Alertmanager routing** — alert *rules* exist and fire; notification routing is
@@ -114,9 +116,9 @@ and the rationale for every service, metric, and alert are in
 | **Backend** | Python 3.12+, FastAPI, Pydantic, uvicorn |
 | **Infrastructure** | Docker, Docker Compose |
 | **Observability** | Prometheus, Grafana (Alertmanager — planned) |
-| **Networking** | Go 1.23 network daemon (`net/http`, `log/slog`, `prometheus/client_golang`) |
-| **Testing** | pytest, pytest-cov, coverage |
-| **CI/CD** | GitHub Actions, Ruff, mypy, Bandit, pip-audit, govulncheck, Trivy, promtool |
+| **Networking** | Go 1.25 network daemon (`net/http`, `log/slog`, `prometheus/client_golang`) |
+| **Testing** | pytest, pytest-cov, coverage, `go test` |
+| **CI** | GitHub Actions, Ruff, mypy, Bandit, pip-audit, govulncheck, Trivy, promtool. Validates, builds and tags only — [deployment is intentionally not implemented](.github/workflows/ci.yml). |
 | **Documentation** | Markdown, Mermaid, Architecture Decision Records |
 
 ---
@@ -125,7 +127,7 @@ and the rationale for every service, metric, and alert are in
 
 ### Prerequisites
 - **Docker** with Compose. That's all you need to run the whole stack and tests.
-- *(Optional)* Python 3.12+ and Go 1.23 for local development.
+- *(Optional)* Python 3.12+ and Go 1.25 for local development.
 
 ### Installation
 ```bash
@@ -181,13 +183,23 @@ api/            FastAPI order service (calls auth, breaker-guarded)
 auth/           Token-validation service (breaker + rate limit)
 worker/         Background job processor (chaos-aware)
 shared/         autosre_shared — the platform library every service imports
-go-daemon/      Go network observability daemon (cmd / internal / pkg / config)
+cmd/            Go binaries: network-daemon, api
+internal/       Go packages: config, server, router, middleware, handlers, clients, prober
+pkg/            netcheck — the reusable DNS/TCP/HTTP probe library
+configs/        network-daemon.yaml
+deployments/    Dockerfiles for the Go binaries
 observability/  prometheus/ (rules, alerts) + grafana/ (dashboards, provisioning)
 tests/          unit, integration, chaos, metrics, alert, health, hardening
 docs/           architecture, ADRs, runbooks, postmortems, operations, guides, design
+scripts/        chaos_demo.sh, validate_observability.py
+frontend/       static landing page
 .github/        CI pipeline
 Makefile        one-command developer workflow
 ```
+
+The Go code is a single module rooted at the repository (`go.mod`), laid out as
+`cmd/` + `internal/` + `pkg/`; `docker-compose.yml` currently runs the Python
+`api`/`auth`/`worker` services alongside the Go network daemon.
 
 ---
 
@@ -239,10 +251,12 @@ Every service exposes Prometheus metrics at `/metrics`. Application metrics
 | `network_tcp_connections_total` | counter | target |
 | `network_timeouts_total` | counter | target, check |
 
-**Recording rules** (Prometheus, `api`-scoped): `api:request_rate`,
+**Recording rules** — 16 in total (Prometheus, `api`-scoped): `api:request_rate`,
 `api:error_rate`, `api:latency:p50|p95|p99`, `api:availability`,
-`api:saturation:in_flight`, `api:slo_target`, `api:error_budget_remaining`,
-`api:error_budget_burn_rate:5m|1h`.
+`api:saturation:in_flight`, `api:slo_target`, `api:error_budget_allowed`,
+`api:error_budget_remaining`, `api:error_budget_burn_rate:5m|1h`, plus
+per-endpoint breakdowns (`api:request_rate:by_endpoint|by_status`,
+`api:error_rate:by_endpoint`, `api:latency:p95:by_endpoint`).
 
 ---
 
