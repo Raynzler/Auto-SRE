@@ -107,6 +107,20 @@ Full diagrams (request / metrics / alert / failure-injection / dependency flows)
 and the rationale for every service, metric, and alert are in
 [docs/architecture](docs/architecture/).
 
+### Architecture decision records
+
+Why each major choice was made — and what was rejected — is recorded in
+[docs/adr](docs/adr/):
+
+| ADR | Decision |
+|-----|----------|
+| [0001](docs/adr/0001-why-fastapi.md) | Why FastAPI |
+| [0002](docs/adr/0002-why-prometheus.md) | Why Prometheus |
+| [0003](docs/adr/0003-why-grafana.md) | Why Grafana |
+| [0004](docs/adr/0004-why-docker-compose.md) | Why Docker Compose — and why Kubernetes was rejected, since its auto-scaling and self-healing conflict with the no-remediation charter |
+| [0005](docs/adr/0005-why-go-daemon.md) | Why a separate Go network daemon |
+| [0006](docs/adr/0006-why-circuit-breaker-abstraction.md) | Why the circuit breaker sits behind a store interface |
+
 ---
 
 ## Technology stack
@@ -266,6 +280,11 @@ per-endpoint breakdowns (`api:request_rate:by_endpoint|by_status`,
 > They are **unauthenticated** and assume a trusted, network-isolated host
 > (local/demo). Never expose them on an untrusted network — gate behind auth or
 > disable them first. Every mode is bounded and reversible (`/chaos/reset`).
+>
+> **Which modes expire on their own:** the CPU and memory injectors take a
+> duration and revert themselves when it elapses. Latency and error injection are
+> toggles — they stay active until disabled (`{"enable": false}`) or cleared with
+> `/chaos/reset`.
 
 Each service mounts the same router (`api:8000`, `auth:8001`, `worker:8002`):
 
