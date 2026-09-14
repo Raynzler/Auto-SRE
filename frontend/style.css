@@ -360,6 +360,17 @@ footer strong {
     color: var(--mocha);
 }
 
+footer a {
+    color: var(--mocha);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px solid var(--soft-gray);
+}
+
+footer a:hover {
+    border-bottom-color: var(--mocha);
+}
+
 .copyright {
     opacity: 0.7;
     font-size: 0.9rem;
