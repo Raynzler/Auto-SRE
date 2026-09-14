@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoSRE Platform - Production-Ready Reliability Demo</title>
+    <title>AutoSRE — Chaos Engineering &amp; Resilience Platform</title>
+    <meta name="description" content="A chaos engineering and resilience platform: inject latency, errors, CPU burn and memory pressure into live services through a REST control plane, and prove the resilience patterns hold. Python, Go, FastAPI, Prometheus, Docker.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="AutoSRE — Chaos Engineering &amp; Resilience Platform">
+    <meta property="og:description" content="Inject failure into live services and prove the resilience patterns hold. Observe, measure and notify — never auto-remediate.">
+    <meta property="og:url" content="https://auto-sre.vercel.app/">
     <link rel="stylesheet" href="style.css">
 </head>
 <script>
@@ -34,17 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
     <nav>
         <div class="container">
             <h1>🚀 AutoSRE Platform</h1>
-            <a href="https://github.com/Raynzler/Auto-SRE" target="_blank" class="github-btn">View on GitHub</a>
+            <a href="https://github.com/Raynzler/Auto-SRE" target="_blank" rel="noopener" class="github-btn">View on GitHub</a>
         </div>
     </nav>
 
     <header class="hero">
         <div class="container">
-            <h2>Self-Healing Microservices Reliability Platform</h2>
-            <p class="tagline">Demonstrating Production-Grade SRE Practices: Observability, Failure Handling, and Automated Recovery</p>
+            <h2>Chaos Engineering &amp; Resilience Platform</h2>
+            <p class="tagline">Inject failure into live services and prove the resilience patterns hold</p>
             <div class="status-badge">
-                <span class="badge live">✅ Phase 1: Live</span>
-                <span class="badge building">🚧 Phase 2-5: In Development</span>
+                <span class="badge live">✅ Complete · Feb – Jul 2026</span>
+                <span class="badge building">🔍 Observe &amp; notify — never auto-remediate</span>
             </div>
         </div>
     </header>
@@ -52,29 +57,63 @@ document.addEventListener('DOMContentLoaded', () => {
     <section class="what-is">
         <div class="container">
             <h3>What is AutoSRE?</h3>
-            <p>AutoSRE is a production-like reliability engineering platform built to demonstrate how Site Reliability Engineers design, monitor, break, and heal distributed systems. This isn't just code...it's a showcase of operational maturity, observability, and incident response automation.</p>
+            <p>AutoSRE is a chaos engineering and resilience platform that runs as a local Docker Compose stack. It injects latency, errors, CPU burn and memory pressure into live services through a REST control plane, then measures whether the resilience patterns actually hold. Experiments are bounded at two layers — module-level caps and per-request validation — and the control plane, health probes and metrics endpoints are exempt from injection, so the abort path can never be made unreachable.</p>
+            <p>Its guiding principle: <strong>observe, measure and notify — never auto-remediate.</strong> Nothing restarts, scales or heals itself. Failures stay visible instead of being masked by automatic recovery, and a human responds using the runbooks.</p>
+            <p>Scope, stated plainly: this is a local demonstration stack, not a production system, and it does not serve real users. It runs a single instance of each service, so there is no load balancer, no replicas and no failover. Alert rules evaluate and fire in the Prometheus UI; Alertmanager notification routing is deliberately left unwired.</p>
         </div>
     </section>
 
     <section class="features">
         <div class="container">
-            <h3>Current Features ✅</h3>
+            <h3>What's Built ✅</h3>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <h4>🔧 Instrumented API Service</h4>
-                    <p>FastAPI service with Prometheus metrics (RED: Rate, Errors, Duration)</p>
+                    <h4>🔥 Chaos Control Plane</h4>
+                    <p>REST endpoints inject latency, HTTP 500s, CPU burn and memory pressure into each service. CPU and memory experiments are time-limited and revert themselves; latency and error injection stay on until they are disabled or reset.</p>
                 </div>
                 <div class="feature-card">
-                    <h4>📊 Metrics Tracking</h4>
-                    <p>Counter, Histogram, and Gauge metrics with proper labeling</p>
+                    <h4>🎯 Reproducible, Not Random</h4>
+                    <p>Errors are spread deterministically across requests with a Bresenham accumulator, and the memory injector touches one byte per 4KB page to force a real commit instead of a lazy allocation.</p>
                 </div>
                 <div class="feature-card">
-                    <h4>🐳 Containerized Architecture</h4>
-                    <p>Docker-based deployment for consistency across environments</p>
+                    <h4>⚡ Three-State Circuit Breaker</h4>
+                    <p>Closed, open and half-open, thread-safe, with an injectable clock for deterministic tests, a pluggable store interface and Prometheus state metrics.</p>
                 </div>
                 <div class="feature-card">
-                    <h4>💚 Health Checks</h4>
-                    <p>Liveness and readiness probes for container orchestration</p>
+                    <h4>🚦 Token-Bucket Rate Limiting</h4>
+                    <p>Per-client rate limiting middleware returning HTTP 429 with a Retry-After header. It bounds request rate; in-flight concurrency is measured as a saturation signal, not capped.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📊 RED Metrics &amp; SLOs</h4>
+                    <p>Rate, Errors and Duration instrumented through ASGI middleware with bounded label cardinality — matched route templates, never raw paths. A p95 500ms SLO with a 750ms alert threshold, defined as Prometheus rules.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🧪 Alert Rules Under Test</h4>
+                    <p>The alerting rules are unit-tested themselves: every alert must carry a severity, a summary, a description and a runbook link, and the runbook it points at has to exist.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔗 Correlation IDs</h4>
+                    <p>Request and correlation IDs generated when absent, honoured when supplied, echoed on the response and forwarded across services — carried by pure ASGI middleware so the context propagates reliably.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🛡️ Hardened Delivery Path</h4>
+                    <p>A nine-job CI pipeline runs Ruff, gofmt, go vet, go test, mypy, pytest, Bandit, Trivy, pip-audit and govulncheck, plus Docker build, Prometheus and Grafana provisioning validation. Third-party actions are pinned to immutable commit SHAs.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔒 Container Hardening</h4>
+                    <p>A reusable Compose anchor applies read-only root filesystems, all Linux capabilities dropped, no-new-privileges, tmpfs /tmp, CPU and memory limits and a graceful stop period. Services run non-root; the Go daemon ships distroless.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🧭 Go Network Daemon</h4>
+                    <p>An independent vantage point written in Go that probes DNS, TCP and HTTP reachability and latency, so "the network is broken" can be told apart from "the app is broken".</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📓 Runbooks, ADRs &amp; Postmortems</h4>
+                    <p>Seven operator runbooks, six architecture decision records and three game-day postmortems — each postmortem carrying the exact command that reproduces the incident.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>✅ Tested</h4>
+                    <p>59 Python tests and 19 Go tests, at 93.9% line and 85.5% branch coverage on the shared platform library.</p>
                 </div>
             </div>
         </div>
@@ -82,27 +121,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <section class="coming-soon">
         <div class="container">
-            <h3>Coming Soon 🚧</h3>
+            <h3>How It Was Built 🗺️</h3>
             <div class="timeline">
                 <div class="timeline-item">
+                    <span class="phase">Phase 1</span>
+                    <h4>Instrumented Service</h4>
+                    <p>A FastAPI service exporting RED metrics — rate, errors and duration — to Prometheus</p>
+                </div>
+                <div class="timeline-item">
                     <span class="phase">Phase 2</span>
-                    <h4>Prometheus + Grafana Integration</h4>
-                    <p>Auto-scraping metrics, live dashboards, SLO tracking</p>
+                    <h4>Prometheus + Grafana</h4>
+                    <p>Scrape configuration, recording rules, SLOs and error budgets, and four provisioned dashboards</p>
                 </div>
                 <div class="timeline-item">
                     <span class="phase">Phase 3</span>
                     <h4>Multi-Service Architecture</h4>
-                    <p>Worker service + Auth service with circuit breakers</p>
+                    <p>api, auth and worker on one shared platform library, with circuit breakers and rate limiting</p>
                 </div>
                 <div class="timeline-item">
                     <span class="phase">Phase 4</span>
                     <h4>Chaos Engineering</h4>
-                    <p>Intentional failure injection and automated recovery validation</p>
+                    <p>Bounded failure injection through a REST control plane, with the abort path held exempt</p>
                 </div>
                 <div class="timeline-item">
                     <span class="phase">Phase 5</span>
                     <h4>Incident Documentation</h4>
-                    <p>Postmortems with timelines, root cause analysis, and prevention strategies</p>
+                    <p>Game-day postmortems with timelines, root cause and a command to reproduce each incident</p>
+                </div>
+                <div class="timeline-item">
+                    <span class="phase">Phase 6</span>
+                    <h4>Hardening &amp; CI</h4>
+                    <p>Container hardening, security scanning, dependency auditing and config validation in CI</p>
                 </div>
             </div>
         </div>
@@ -114,28 +163,36 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="tech-badges">
                 <span class="tech-badge">Python</span>
                 <span class="tech-badge">FastAPI</span>
-                <span class="tech-badge">Docker</span>
+                <span class="tech-badge">Go</span>
                 <span class="tech-badge">Prometheus</span>
                 <span class="tech-badge">Grafana</span>
-                <span class="tech-badge">PostgreSQL</span>
-                <span class="tech-badge">Redis</span>
-                <span class="tech-badge">Nginx</span>
+                <span class="tech-badge">Docker</span>
+                <span class="tech-badge">Docker Compose</span>
+                <span class="tech-badge">GitHub Actions</span>
+                <span class="tech-badge">pytest</span>
             </div>
         </div>
     </section>
 
     <section class="cta">
         <div class="container">
-            <h3>Watch Development Live</h3>
-            <p>This project is being built incrementally with full documentation of architectural decisions and SRE thinking.</p>
-            <a href="https://github.com/Raynzler/Auto-SRE" target="_blank" class="cta-btn">Follow on GitHub →</a>
+            <h3>Read the Code</h3>
+            <p>Every design decision is recorded as an architecture decision record, every alert links to a runbook, and every incident has a postmortem carrying the command that reproduces it.</p>
+            <a href="https://github.com/Raynzler/Auto-SRE" target="_blank" rel="noopener" class="cta-btn">View on GitHub →</a>
         </div>
     </section>
 
     <footer>
         <div class="container">
-            <p>Built to demonstrate SRE principles: <strong>Observability</strong> • <strong>Reliability</strong> • <strong>Automation</strong></p>
-            <p class="copyright">© 2025 AutoSRE Platform</p>
+            <p>Built to demonstrate SRE principles: <strong>Observability</strong> • <strong>Resilience</strong> • <strong>Incident Response</strong></p>
+            <p>Hamza Shaikh — Site Reliability, DevOps &amp; Cloud Infrastructure<br>
+                M.Sc. Computer Science, RPTU Kaiserslautern-Landau (Oct 2025 – expected 2027) · Distributed Systems &amp; Software Engineering</p>
+            <p>
+                <a href="https://github.com/Raynzler" target="_blank" rel="noopener">GitHub</a> ·
+                <a href="https://linkedin.com/in/shamza31" target="_blank" rel="noopener">LinkedIn</a> ·
+                <a href="https://shamza31.vercel.app" target="_blank" rel="noopener">Portfolio</a>
+            </p>
+            <p class="copyright">© 2026 Hamza Shaikh · AutoSRE</p>
         </div>
     </footer>
 </body>
