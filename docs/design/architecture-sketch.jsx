@@ -1,3 +1,21 @@
+/*
+ * SUPERSEDED DESIGN SKETCH — NOT THE CURRENT ARCHITECTURE.
+ *
+ * The original layered mockup from the start of the project, kept for history.
+ * It is never built, imported, or deployed. Two things in it were deliberately
+ * REJECTED and never implemented — they are annotated inline below rather than
+ * deleted, so the record of what was considered stays intact:
+ *
+ *   1. "Layer 5: Self-Healing Mechanisms" (restart: unless-stopped, depends_on
+ *      with conditions). AutoSRE observes, measures and notifies; it never
+ *      auto-remediates. docker-compose.yml sets no restart policy on purpose and
+ *      no depends_on uses `condition:`. See docs/adr/0004-why-docker-compose.md.
+ *   2. "Production-Ready". AutoSRE is a local demonstration stack. It is not a
+ *      production system and does not serve real users.
+ *
+ * The authoritative architecture is docs/architecture/.
+ */
+
 import React from 'react';
 import { Network, Database, Activity, AlertTriangle, Repeat, TrendingUp } from 'lucide-react';
 
@@ -6,7 +24,7 @@ export default function AutoSREArchitecture() {
     <div className="w-full h-full bg-slate-900 text-white p-8 overflow-auto">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">AutoSRE System Architecture</h1>
-        <p className="text-slate-400 mb-8">Production-Ready SRE Demonstration Platform</p>
+        <p className="text-slate-400 mb-8">Original design sketch — superseded. The authoritative architecture is docs/architecture/.</p>
 
         {/* Architecture Layers */}
         <div className="space-y-6">
@@ -183,12 +201,18 @@ export default function AutoSREArchitecture() {
             </div>
           </div>
 
-          {/* Layer 5: Self-Healing */}
+          {/* Layer 5: REJECTED. Never implemented — AutoSRE does not auto-remediate. */}
           <div className="bg-slate-800 rounded-lg p-6 border-l-4 border-red-500">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Repeat className="w-5 h-5" />
-              Layer 5: Self-Healing Mechanisms
+              Layer 5: Self-Healing Mechanisms — REJECTED, never implemented
             </h2>
+            <p className="text-sm text-red-300 mb-4">
+              Proposed early, then deliberately dropped: AutoSRE observes, measures and
+              notifies rather than auto-remediating, so failures stay visible instead of
+              being masked by automatic restarts. docker-compose.yml sets no restart
+              policy and no depends_on condition. See docs/adr/0004-why-docker-compose.md.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-700 p-4 rounded">
                 <h3 className="font-semibold mb-2">Docker Compose Policies</h3>
@@ -290,7 +314,7 @@ export default function AutoSREArchitecture() {
               <h3 className="font-semibold mb-2 text-purple-300">Phase 3: Chaos (Week 3)</h3>
               <ul className="text-sm text-slate-300 space-y-1">
                 <li>✓ All failure scenarios</li>
-                <li>✓ Self-healing validation</li>
+                <li>✓ Resilience-pattern validation (breaker, rate limiter)</li>
                 <li>✓ Postmortems</li>
                 <li>✓ Documentation</li>
               </ul>
